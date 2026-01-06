@@ -1,37 +1,98 @@
 #!/bin/bash
 
-# Script to create and push the jayson branch
+# Script to create and push the jayson branch and set it as default
 # This script should be run by a user with push access to the repository
 
 set -e
 
-echo "Creating jayson branch..."
+REPO_OWNER="JaysonKhan"
+REPO_NAME="Telegram"
+BRANCH_NAME="jayson"
+EXPECTED_COMMIT="a8ec3a867d2385249973fca9e09cfde96489810e"
+
+echo "=================================="
+echo "Jayson Branch Setup Script"
+echo "=================================="
+echo ""
 
 # Check if we're in a git repository
 if ! git rev-parse --git-dir > /dev/null 2>&1; then
-    echo "Error: Not in a git repository"
+    echo "❌ Error: Not in a git repository"
     exit 1
 fi
 
+echo "✓ In git repository"
+
 # Check if jayson branch already exists locally
 if git show-ref --verify --quiet refs/heads/jayson; then
-    echo "Branch 'jayson' already exists locally"
+    echo "✓ Branch 'jayson' already exists locally"
+    CURRENT_COMMIT=$(git rev-parse jayson)
+    
+    if [ "$CURRENT_COMMIT" = "$EXPECTED_COMMIT" ]; then
+        echo "✓ Branch is at expected commit: $EXPECTED_COMMIT"
+    else
+        echo "⚠️  Warning: Branch commit ($CURRENT_COMMIT) differs from expected ($EXPECTED_COMMIT)"
+        read -p "Continue anyway? (y/n) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            exit 1
+        fi
+    fi
+    
     git checkout jayson
 else
-    echo "Creating new branch 'jayson'"
-    git checkout -b jayson
+    echo "⚠️  Branch 'jayson' does not exist locally"
+    echo "Creating new branch 'jayson' from commit $EXPECTED_COMMIT"
+    
+    if git checkout -b jayson $EXPECTED_COMMIT; then
+        echo "✓ Created branch 'jayson'"
+    else
+        echo "❌ Failed to create branch"
+        exit 1
+    fi
 fi
 
-# Push to remote
+echo ""
 echo "Pushing jayson branch to remote..."
+
 if git push -u origin jayson; then
-    echo "✓ Successfully created and pushed 'jayson' branch"
     echo ""
-    echo "Next steps:"
-    echo "1. Go to https://github.com/JaysonKhan/Telegram/settings/branches"
-    echo "2. Change the default branch to 'jayson'"
-    echo "3. Click 'Update' to confirm"
+    echo "=========================================="
+    echo "✓ Successfully pushed 'jayson' branch!"
+    echo "=========================================="
+    echo ""
+    echo "Next steps to set as default branch:"
+    echo ""
+    echo "Option 1 - GitHub Web Interface (Recommended):"
+    echo "  1. Go to: https://github.com/$REPO_OWNER/$REPO_NAME/settings/branches"
+    echo "  2. Click the switch icon next to 'Default branch'"
+    echo "  3. Select 'jayson' from the dropdown"
+    echo "  4. Click 'Update' to confirm"
+    echo ""
+    echo "Option 2 - GitHub CLI (if authenticated):"
+    echo "  gh repo edit $REPO_OWNER/$REPO_NAME --default-branch jayson"
+    echo ""
+    echo "Option 3 - GitHub API (requires personal access token):"
+    echo "  curl -X PATCH \\"
+    echo "    -H 'Accept: application/vnd.github.v3+json' \\"
+    echo "    -H 'Authorization: token YOUR_TOKEN' \\"
+    echo "    https://api.github.com/repos/$REPO_OWNER/$REPO_NAME \\"
+    echo "    -d '{\"default_branch\":\"jayson\"}'"
+    echo ""
+    echo "=========================================="
 else
-    echo "✗ Failed to push branch. Check your permissions and authentication."
+    echo ""
+    echo "❌ Failed to push branch"
+    echo ""
+    echo "Possible causes:"
+    echo "  - No push access to the repository"
+    echo "  - Authentication failure"
+    echo "  - Network issues"
+    echo ""
+    echo "Please ensure you have:"
+    echo "  1. Valid GitHub credentials configured"
+    echo "  2. Push access to $REPO_OWNER/$REPO_NAME"
+    echo "  3. Two-factor authentication token if required"
+    echo ""
     exit 1
 fi
