@@ -8,7 +8,12 @@ set -e
 REPO_OWNER="JaysonKhan"
 REPO_NAME="Telegram"
 BRANCH_NAME="jayson"
-EXPECTED_COMMIT="a8ec3a867d2385249973fca9e09cfde96489810e"
+# Expected commit can be overridden by .jayson-branch-ref file if it exists
+if [ -f ".jayson-branch-ref" ]; then
+    EXPECTED_COMMIT=$(cat .jayson-branch-ref | tr -d '\n' | tr -d ' ')
+else
+    EXPECTED_COMMIT="a8ec3a867d2385249973fca9e09cfde96489810e"
+fi
 
 echo "=================================="
 echo "Jayson Branch Setup Script"
@@ -23,6 +28,25 @@ fi
 
 echo "✓ In git repository"
 
+# Check if origin remote exists
+if ! git remote | grep -q "^origin$"; then
+    echo "❌ Error: 'origin' remote not found"
+    echo "Available remotes:"
+    git remote -v
+    exit 1
+fi
+
+echo "✓ Remote 'origin' exists"
+
+# Validate expected commit exists
+if ! git cat-file -e "$EXPECTED_COMMIT" 2>/dev/null; then
+    echo "❌ Error: Expected commit $EXPECTED_COMMIT not found in repository"
+    echo "This might mean the repository state is different than expected"
+    exit 1
+fi
+
+echo "✓ Expected commit exists: $EXPECTED_COMMIT"
+
 # Check if jayson branch already exists locally
 if git show-ref --verify --quiet refs/heads/jayson; then
     echo "✓ Branch 'jayson' already exists locally"
@@ -32,9 +56,11 @@ if git show-ref --verify --quiet refs/heads/jayson; then
         echo "✓ Branch is at expected commit: $EXPECTED_COMMIT"
     else
         echo "⚠️  Warning: Branch commit ($CURRENT_COMMIT) differs from expected ($EXPECTED_COMMIT)"
-        read -p "Continue anyway? (y/n) " -n 1 -r
+        read -p "Continue anyway? (y/n) [n]: " -n 1 -r
         echo
+        # Default to 'n' if no input or non-y/Y input
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo "Aborted by user"
             exit 1
         fi
     fi
